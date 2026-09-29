@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AML/CDD & Screening Simulator (Bank Counter Master Edition)</title>
+    <style>
+        :root {
+            --color-navy: #0F172A;
+            --color-blue: #1E3A8A;
+            --color-blue-light: #2563EB;
+            --color-sky: #0284C7;
+            --color-red: #DC2626;
+            --color-orange: #EA580C;
+            --color-green: #16A34A;
+            --color-bg: #F1F5F9;
+            --color-card: #FFFFFF;
+            --color-text-main: #1E293B;
+            --color-text-sub: #64748B;
+            --color-border: #CBD5E1;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+        body { background-color: var(--color-bg); color: var(--color-text-main); line-height: 1.5; padding-bottom: 90px; }
+
+        /* Header */
+        .header { background-color: var(--color-navy); color: #FFFFFF; padding: 12px 20px; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-md); display: flex; justify-content: space-between; align-items: center; }
+        .header__title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .header__stats { display: flex; gap: 10px; font-size: 0.82rem; font-weight: 600; align-items: center; }
+        .stat-item { background: rgba(255, 255, 255, 0.12); padding: 4px 10px; border-radius: 20px; }
+        .btn-manual { background: var(--color-sky); color: #FFF; border: none; padding: 4px 12px; border-radius: 16px; font-weight: 700; cursor: pointer; font-size: 0.8rem; }
+
+        /* Main Container */
+        .container { max-width: 980px; margin: 16px auto; padding: 0 12px; }
+        .case-panel { display: none; flex-direction: column; gap: 16px; }
+        .case-panel.active { display: flex; }
+
+        /* 🏛️ 対面カウンターエリア */
+        .counter-stage {
+            background: linear-gradient(180deg, #CBD5E1 0%, #94A3B8 100%);
+            border: 2px solid #64748B;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 210px 1fr 240px;
+            gap: 14px;
+            align-items: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .customer-portrait-card {
+            background: #FFFFFF; border: 2px solid var(--color-navy);
+            border-radius: var(--radius-md); padding: 10px; text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .portrait-avatar-box {
+            width: 85px; height: 85px; border-radius: 8px; background: #E2E8F0;
+            margin: 0 auto 6px; display: flex; align-items: center; justify-content: center;
+            font-size: 2.8rem; border: 2px solid #94A3B8; position: relative; overflow: hidden;
+        }
+        .portrait-feature-tag {
+            font-size: 0.7rem; font-weight: 700; background: #FEF3C7; color: #92400E;
+            padding: 2px 6px; border-radius: 4px; display: block; margin-top: 4px;
+        }
+
+        .speech-bubble {
+            background: #FFFFFF; border: 2px solid var(--color-blue);
+            border-radius: 16px; padding: 14px 16px; position: relative;
+            font-size: 0.92rem; font-weight: 600; color: var(--color-navy); line-height: 1.5;
+            box-shadow: var(--shadow-md);
+        }
+        .speech-bubble::before {
+            content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+            border-width: 6px 12px 6px 0; border-style: solid; border-color: transparent var(--color-blue) transparent transparent;
+        }
+
+        .id-card-graphic {
+            background: linear-gradient(135deg, #FFF 0%, #EFF6FF 100%);
+            border: 2px solid var(--color-blue-light); border-radius: 8px;
+            padding: 8px; font-size: 0.72rem; position: relative; box-shadow: var(--shadow-sm);
+        }
+        .id-card-header {
+            background: var(--color-blue-light); color: #FFF; font-weight: 800;
+            padding: 2px 6px; border-radius: 4px 4px 0 0; font-size: 0.75rem;
+            display: flex; justify-content: space-between; margin: -8px -8px 6px -8px;
+        }
+        .id-card-body { display: flex; gap: 8px; align-items: center; }
+        .id-card-photo {
+            width: 55px; height: 65px; background: #CBD5E1; border: 1px solid #94A3B8;
+            display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border-radius: 4px;
+        }
+        .id-card-info { flex: 1; }
+        .id-hologram { position: absolute; bottom: 4px; right: 6px; font-size: 0.65rem; color: #9333EA; font-weight: 800; border: 1px dashed #9333EA; padding: 1px 4px; border-radius: 4px; }
+
+        /* 🖥️ 窓口行員端末画面 */
+        .terminal-card {
+            background: var(--color-card); border: 2px solid var(--color-navy);
+            border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-md);
+        }
+        .terminal-header {
+            background: var(--color-navy); color: #FFF; margin: -18px -18px 14px -18px;
+            padding: 8px 16px; border-radius: 10px 10px 0 0; font-size: 0.85rem; font-weight: 700;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .step-block {
+            border: 1px solid var(--color-border); border-radius: var(--radius-md);
+            padding: 12px; margin-bottom: 12px; background: #F8FAFC;
+        }
+        .step-title { font-size: 0.88rem; font-weight: 800; color: var(--color-navy); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* CDD Grid & Interactive Feedback */
+        .cdd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+        .data-item { font-size: 0.82rem; background: #FFFFFF; padding: 6px 8px; border-radius: var(--radius-md); border: 1px solid var(--color-border); cursor: pointer; transition: all 0.2s; position: relative; }
+        .data-item:hover { border-color: var(--color-sky); }
+        .data-item.flagged-success { background-color: #DCFCE7; border-color: var(--color-green); }
+        .data-item.flagged-success::after { content: "⭕️不審点"; position: absolute; top: 2px; right: 4px; font-size: 0.65rem; font-weight: 800; color: var(--color-green); }
+        .data-item.flagged-fail { background-color: #FEF2F2; border-color: var(--color-red); }
+        .data-item.flagged-fail::after { content: "❌正常"; position: absolute; top: 2px; right: 4px; font-size: 0.65rem; font-weight: 800; color: var(--color-red); }
+
+        .data-item__label { color: var(--color-text-sub); font-size: 0.72rem; display: block; font-weight: 600; }
+        .data-item__value { font-weight: 700; color: var(--color-text-main); }
+
+        /* Badges */
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; color: #FFFFFF; }
+        .badge--high { background-color: var(--color-red); }
+        .badge--medium { background-color: var(--color-orange); }
+        .badge--low { background-color: var(--color-green); }
+
+        /* Buttons */
+        .btn-inline { background-color: var(--color-blue); color: #FFFFFF; border: none; padding: 7px 12px; border-radius: var(--radius-md); font-weight: 700; cursor: pointer; font-size: 0.82rem; }
+        .btn-inline--edd { background-color: var(--color-sky); }
+        .btn-inline--upgrade { background-color: var(--color-orange); color: #FFF; }
+        
+        .result-panel { display: none; text-align: left; margin-top: 8px; padding: 10px; background: #FFFFFF; border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: 0.85rem; line-height: 1.5; }
+        .result-panel.active { display: block; }
+
+        /* Action Bar (2-Button Slimmed Layout) */
+        .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #FFFFFF; border-top: 1px solid var(--color-border); padding: 10px 16px; display: flex; justify-content: center; gap: 16px; box-shadow: 0 -4px 8px rgba(0,0,0,0.06); z-index: 90; }
+        .btn-action { flex: 1; max-width: 320px; padding: 14px 12px; border: none; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 800; cursor: pointer; transition: transform 0.1s; }
+        .btn-action:active { transform: scale(0.98); }
+        .btn-approve { background-color: var(--color-green); color: #FFFFFF; }
+        .btn-reject { background-color: var(--color-red); color: #FFFFFF; }
+
+        /* Modals */
+        .modal-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15, 23, 42, 0.75); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #FFFFFF; border-radius: var(--radius-lg); max-width: 620px; width: 100%; padding: 22px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+        .modal__header { font-size: 1.15rem; font-weight: 800; margin-bottom: 10px; }
+        .modal__header--correct { color: var(--color-green); }
+        .modal__header--wrong { color: var(--color-red); }
+        .modal__body { font-size: 0.9rem; color: var(--color-text-main); margin-bottom: 18px; line-height: 1.6; }
+        .modal__btn { width: 100%; background-color: var(--color-navy); color: #FFFFFF; border: none; padding: 11px; border-radius: var(--radius-md); font-weight: 700; cursor: pointer; }
+
+        .aftermath-box { background-color: #FEF2F2; border: 1px solid #FCA5A5; padding: 10px 12px; border-radius: var(--radius-md); margin-top: 10px; font-size: 0.85rem; color: #991B1B; }
+
+        .reason-options { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .btn-reason { text-align: left; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #F8FAFC; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        .btn-reason:hover { background-color: #E2E8F0; }
+
+        /* Skill Meters */
+        .skill-meter { margin-bottom: 8px; }
+        .skill-label { font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .bar-bg { background: #E2E8F0; border-radius: 10px; height: 10px; overflow: hidden; }
+        .bar-fill { background: var(--color-blue-light); height: 100%; width: 0%; transition: width 0.5s ease-in-out; }
+
+        @media (max-width: 768px) {
+            .counter-stage { grid-template-columns: 1fr; text-align: center; }
+            .speech-bubble::before { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header__title">🏛️ 銀行窓口 AML/CDD 審査シミュレーター</div>
+        <div class="header__stats">
+            <button class="btn-manual" onclick="openManualModal()">📖 NRA/ガイドライン規程</button>
+            <div class="stat-item">進捗: <span id="progress-text">1/6</span></div>
+            <div class="stat-item">正答数: <span id="score-text">0</span></div>
+            <div class="stat-item">ライフ: <span id="life-text">❤️❤️❤️</span></div>
+            <div class="stat-item" style="color:#FCA5A5;">⏱️ <span id="timer-text">01:30</span></div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container" id="case-container"></main>
+
+    <!-- Footer Action Bar (Slimmed to 2 Decisions) -->
+    <div class="action-bar">
+        <button class="btn-action btn-approve" onclick="handleJudge(false)">【承認】 ✨ スムーズ受付</button>
+        <button class="btn-action btn-reject" onclick="openReasonModal()">🚨 【謝絶/通報】 高リスク遮断</button>
+    </div>
+
+    <!-- Start Modal -->
+    <div class="modal-overlay active" id="modal-start">
+        <div class="modal">
+            <div class="modal__header">🎯 あなたのミッション：銀行窓口のAML対応力を試そう！</div>
+            <div class="modal__body">
+                あなたは銀行の窓口担当者（1線）です。<br><br>
+                このシミュレーターは、マネー・ローンダリング（資金洗浄）や口座の不正利用（なりすまし・名義貸し等）を企てる<b>不審な顧客を見破りつつ、善良なお客様の取引はスムーズにお受けする、あなたの『AML実務対応力』を試すゲーム</b>です。<br><br>
+                <b>【窓口での3ステップフロー】</b><br>
+                1. <b>🪪 本人確認（偽造・なりすまし見抜き）:</b> 写真と来店客の顔の特徴（ホクロ・年齢）を検分！<br>
+                2. <b>👤 顧客調査（CDD & 動的評価）:</b> 不審な項目を直接タップ検知！違和感時は<b>【🚨 リスク格付手動引き上げ】</b>を実行！<br>
+                3. <b>🔍 リスト照合（スクリーニング）& 🔎 徹底ヒアリング（EDD）:</b> 隠されたリスク（BO反社・SoW拒否）を暴け！
+            </div>
+            <button class="modal__btn" onclick="closeStartModal()">窓口業務を開始する</button>
+        </div>
+    </div>
+
+    <!-- Manual/Guideline Modal -->
+    <div class="modal-overlay" id="modal-manual">
+        <div class="modal">
+            <div class="modal__header" style="color:var(--color-blue);">📖 AML/CFTガイドライン & 窓口審査用語集</div>
+            <div class="modal__body" style="font-size:0.85rem;">
+                <b>■ 窓口審査の用語ガイド</b><br>
+                ・<b>KYC（本人確認）:</b> 提示された身分証の真贋（改ざん）および来店客との同一性（なりすまし）の検証。<br>
+                ・<b>CDD（顧客情報の調査）:</b> 職業・国籍・資金源・取引目的と申請内容のバランス（不整合）の確認。<br>
+                ・<b>スクリーニング（リスト照合）:</b> 犯罪者・反社会的勢力・PEPリストとの照合。<b>実質的支配者（BO）もStep 3で照合！</b><br>
+                ・<b>EDD（徹底ヒアリング・詳細調査）:</b> 高リスク取引時に資金源証跡（SoW）や上級管理職指示を得る手続。<br>
+                ・<b>RBA（リスクベース・アプローチ）:</b> 高リスクは厳格に調査し、低リスク正常顧客は迅速にスムーズ受付（過剰調査回避）する原則。
+            </div>
+            <button class="modal__btn" onclick="closeManualModal()">端末画面に戻る</button>
+        </div>
+    </div>
+
+    <!-- Reason Selection Modal -->
+    <div class="modal-overlay" id="modal-reason">
+        <div class="modal">
+            <div class="modal__header" style="color:var(--color-red);">🚨 謝絶・通報の根拠（不審点）を選択</div>
+            <div class="modal__body">
+                どのようなリスク・法的根拠（レッド・フラッグ指標）に基づき取引を謝絶/通報しますか？
+                <div class="reason-options" id="reason-buttons-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explanation Modal -->
+    <div class="modal-overlay" id="modal-explain">
+        <div class="modal">
+            <div class="modal__header" id="modal-explain-title">判定結果</div>
+            <div class="modal__body">
+                <div id="modal-explain-body"></div>
+                <div class="aftermath-box" id="modal-explain-aftermath"></div>
+            </div>
+            <button class="modal__btn" onclick="handleModalNext()">次の事案へ進む</button>
+        </div>
+    </div>
+
+    <!-- Final Result Modal -->
+    <div class="modal-overlay" id="modal-final">
+        <div class="modal">
+            <div class="modal__header" id="modal-final-title">最終審査結果</div>
+            <div class="modal__body" id="modal-final-body">結果サマリー</div>
+            <button class="modal__btn" onclick="resetSimulator()">シミュレーターを再挑戦する</button>
+        </div>
+    </div>
+
+    <script>
+        const caseData = [
+            {
+                id: 1,
+                title: "Case 1: 個人・高額海外送金（属性ミスマッチ）",
+                customerName: "田中 蓮 (21歳)",
+                avatarNormal: "👨🏻🎓", avatarAngry: "😡",
+                customerFeature: "【来店客の特徴】21歳・男性・ソワソワしながらスマホの指示を聞いている",
+                speech: "「海外のプライベートバンク口座宛に 3,000万円 を至急電信送金してください。」",
+                idCard: {
+                    type: "マイナンバーカード", photoAvatar: "👨🏻🎓", name: "田中 蓮",
+                    birth: "2005年3月12日生 (21歳)", feature: "【写真特徴】丸顔・黒髪短髪・20代前半"
+                },
+                initialRisk: "LOW",
+                idCheck: { status: "OK", details: "券面改ざん痕なし。マイナンバーICチップ照合一致。写真と来店客の容姿が一致しています。" },
+                cdd: [
+                    { label: "顧客ID", value: "IND-9011", suspicious: false },
+                    { label: "氏名 / 法人名", value: "田中 蓮", suspicious: false },
+                    { label: "国籍・地域", value: "日本", suspicious: false },
+                    { label: "在留資格・期限", value: "―", suspicious: false },
+                    { label: "職業・事業内容", value: "大学生（アルバイト）", suspicious: true, note: "🚨 不審点：21歳学生で3,000万円の送金規模は著しく不整合" },
+                    { label: "資金の源泉 (SoW)", value: "親からの生活支援（主張）", suspicious: true, note: "🚨 不審点：生活支援で3,000万円は客観的裏付けが必要" },
+                    { label: "申告取引目的", value: "海外投資送金", suspicious: false },
+                    { label: "取引予定金額", value: "30,000,000円", suspicious: true, note: "🚨 不審点：高額送金リスク" }
+                ],
+                bo: { show: false },
+                screening: { status: "CLEAR", details: "【個人DB照合】本人のPEP・制裁・反社DBヒットなし（0件）" },
+                observation: "21歳学生で3,000万円の送金。理由を問うと不自然に焦り、スマホで指示を仰ぎながら会話。",
+                eddInfo: {
+                    requested: "資金源の裏付け（SoW：親の所得証明や贈与税申告書）の提出を要求。",
+                    reaction: "「親の金なんだから関係ないだろ！」と激昂し、書類提出を拒否。",
+                    managerNote: "【上級管理職指示】属性と金額が著しく不整合であり、SoWが確認できないため謝絶・STR届出とする。"
+                },
+                reasons: [
+                    { text: "① 属性（21歳学生）と取引規模が著しく不整合であり、リスク引き上げ後のSoW提出を拒否されたため", correct: true },
+                    { text: "② マイナンバーカードが偽造されていたため（誤り）", correct: false }
+                ],
+                correctChoice: true,
+                explain: "<b>【正解：謝絶 / 通報】</b><br>属性ミスマッチを察知し、手動でリスク格付をHIGHへ引き上げてEDD（SoW要求）を行うのが適切な対応です。証跡提出拒否により謝絶・通報となります。",
+                aftermath: "⚠️ <b>もし見過ごしていたら…:</b> 名義貸し口座（マネーミュール）として悪用され、後日警察から振込詐欺資金流出口座として凍結請求が届きました。"
+            },
+            {
+                id: 2,
+                title: "Case 2: 個人・他人の身分証悪用による「なりすまし」申請",
+                customerName: "自称・山本 健太 (28歳と主張)",
+                avatarNormal: "👨🏻🦲", avatarAngry: "😰",
+                customerFeature: "【来店客の特徴】推定45〜50歳・面長・目元にホクロなし・明らかに年齢が高い",
+                speech: "「カードを失くしたので再発行と、新しい口座も一緒に作りたいんですが。」",
+                idCard: {
+                    type: "運転免許証", photoAvatar: "👨🏻🎓", name: "山本 健太",
+                    birth: "1998年7月10日生 (28歳)", feature: "【写真特徴】丸顔・20代後半・右目下に目立つホクロあり"
+                },
+                initialRisk: "MEDIUM",
+                idCheck: { status: "NG", details: "🚨【なりすまし検知！】提示された免許証写真（20代・丸顔・右目下ホクロあり）と、窓口来店客（推定50代・面長・ホクロなし）の特徴が明らかに一致しません！他人の身分証を悪用した『なりすまし』の疑いです。" },
+                cdd: [
+                    { label: "顧客ID", value: "IND-1109", suspicious: false },
+                    { label: "氏名 / 法人名", value: "山本 健太（自称）", suspicious: true, note: "🚨 不審点：本人写真と来店客の容姿（年齢・顔立ち）が不一致" },
+                    { label: "国籍・地域", value: "日本", suspicious: false },
+                    { label: "在留資格・期限", value: "―", suspicious: false },
+                    { label: "職業・事業内容", value: "建設業（自称）", suspicious: false },
+                    { label: "資金の源泉 (SoW)", value: "給与", suspicious: false },
+                    { label: "申告取引目的", value: "生活口座", suspicious: false },
+                    { label: "取引予定金額", value: "初期預入 0円", suspicious: false }
+                ],
+                bo: { show: false },
+                screening: { status: "CLEAR", details: "【個人DB照合】DBヒットなし" },
+                observation: "提示された免許証の生年月日と本人の見た目（年齢感・顔立ち・ホクロ）に決定的な違いがある。",
+                eddInfo: { requested: "なりすまし検知のためEDD不要（即時警察通報・謝絶）。", reaction: "―", managerNote: "【上級管理職指示】他人の身分証悪用（なりすまし）のため即時警察通報および謝絶。" },
+                reasons: [
+                    { text: "① 本人確認（身分証検分）において写真と来店客の容姿特徴が全く異なり「なりすまし」であるため", correct: true },
+                    { text: "② 建設業の口座開設は一律禁止されているから（誤り）", correct: false }
+                ],
+                correctChoice: true,
+                explain: "<b>【正解：謝絶 / 警察通報】</b><br>第一の関門である「🪪 本人確認（身分証検分）」において、写真と来店客の容姿（年齢感・顔立ち・ホクロ等）の違いを見抜き、なりすましを即座にブロックできました！",
+                aftermath: "💡 <b>水際対策の成果:</b> 拾得・購入された他人の身分証による不正口座開設を未然に防止しました。"
+            },
+            {
+                id: 3,
+                title: "Case 3: 外国人留学生・在留カード改ざん（身分証変造）",
+                customerName: "アウン・ソー (23歳)",
+                avatarNormal: "👨🎓", avatarAngry: "😰",
+                customerFeature: "【来店客の特徴】20代男性・質問に対し視線を泳がせている",
+                speech: "「バイト代の口座を作りたいです。在留カード持ってきました。」",
+                idCard: {
+                    type: "在留カード", photoAvatar: "👨🎓", name: "AUNG THO",
+                    birth: "2003年1月15日生 (23歳)", feature: "【写真特徴】20代男性・写真一致（ただし券面に不審な点あり）"
+                },
+                initialRisk: "MEDIUM",
+                idCheck: { status: "NG", details: "🚨【偽造・変造検出】ICチップ読み取り不一致。在留期限の文字「2026年」が券面上で手作業により上書き改ざんされています！" },
+                cdd: [
+                    { label: "顧客ID", value: "IND-3301", suspicious: false },
+                    { label: "氏名 / 法人名", value: "アウン・ソー", suspicious: false },
+                    { label: "国籍・地域", value: "ミャンマー", suspicious: false },
+                    { label: "在留資格・期限", value: "留学（在留期限改ざん疑い）", suspicious: true, note: "🚨 不審点：在留期限の改ざん痕・IC不一致" },
+                    { label: "職業・事業内容", value: "日本語学校 生徒", suspicious: false },
+                    { label: "資金の源泉 (SoW)", value: "バイト給与", suspicious: false },
+                    { label: "申告取引目的", value: "生活費口座", suspicious: false },
+                    { label: "取引予定金額", value: "初期預入 1,000円", suspicious: false }
+                ],
+                bo: { show: false },
+                screening: { status: "CLEAR", details: "DBヒットなし" },
+                observation: "在留カードの手触りが不自然。真贋チェックを行う様子を窺いソワソワしている。",
+                eddInfo: { requested: "身分証偽造検知のためEDD不要（即時警察通報）。", reaction: "―", managerNote: "【上級管理職指示】変造身分証による口座開設申請のため即時警察通報・謝絶。" },
+                reasons: [
+                    { text: "① 本人確認において在留カードの変造・改ざん（在留期限の上書き）が検出されたため", correct: true },
+                    { text: "② ミャンマー国籍だから（誤り）", correct: false }
+                ],
+                correctChoice: true,
+                explain: "<b>【正解：謝絶 / 警察通報】</b><br>身分証の偽造・変造を発見した場合、即座に警察通報および取引謝絶を行います。",
+                aftermath: "💡 <b>水際対策の成果:</b> 在留期限切れ不法滞留者による偽造カード口座開設を未然に防ぎました。"
+            },
+            {
+                id: 4,
+                title: "Case 4: 法人・新設貿易会社（シェアオフィス実態確認）",
+                customerName: "グローバル・トレーディング（株）",
+                avatarNormal: "👨💼", avatarAngry: "📑",
+                customerFeature: "【来店客の特徴】代表取締役・佐藤卓（40代男性・スーツ着用・書類準備万全）",
+                speech: "「海外から電子部品を仕入れるための輸入決済口座を開設したいです。」",
+                idCard: {
+                    type: "履歴事項全部証明書・身分証", photoAvatar: "👨💼", name: "佐藤 卓（代表）",
+                    birth: "法人設立：3ヶ月前", feature: "【写真特徴】本人確認一致"
+                },
+                initialRisk: "MEDIUM",
+                idCheck: { status: "OK", details: "代表者身分証・法人登記簿照合完了（本人一致）" },
+                cdd: [
+                    { label: "顧客ID", value: "CORP-8802", suspicious: false },
+                    { label: "氏名 / 法人名", value: "グローバル・トレーディング合同会社", suspicious: false },
+                    { label: "国籍・地域", value: "日本（法人）", suspicious: false },
+                    { label: "在留資格・期限", value: "―", suspicious: false },
+                    { label: "職業・事業内容", value: "輸入卸売業（設立3ヶ月）", suspicious: true, note: "🚨 不審点：設立間もない法人の高額海外決済（実態確認が必要）" },
+                    { label: "資金の源泉 (SoW)", value: "役員出資金", suspicious: false },
+                    { label: "申告取引目的", value: "仕入決済", suspicious: false },
+                    { label: "取引予定金額", value: "月間 40,000,000円", suspicious: true, note: "🚨 不審点：シェアオフィス登記での月間4,000万円取引" }
+                ],
+                bo: { show: true, name: "佐藤 卓（代表取締役）", share: "100%", screeningStatus: "❓ スクリーニング未実行（Step 3で照合）" },
+                screening: { status: "CLEAR", details: "【個人照合】代表者ヒットなし<br>【BO照合結果】佐藤 卓：クリア（反社・PEPヒットなし 0件）" },
+                observation: "登記住所がバーチャルオフィス（100社重複登記）。ペーパーカンパニーのリスクが懸念される。",
+                eddInfo: {
+                    requested: "定款、売買契約書・インボイス、作業スペース写真、事業計画書の提出を要求。",
+                    reaction: "事業計画書、海外大手メーカーとの代理店契約書、オフィスの写真を即座に提出。",
+                    managerNote: "【上級管理職指示】シェアオフィス登記であるが事業実態・取引の正当性が裏付けられたため承認。"
+                },
+                reasons: [
+                    { text: "① シェアオフィス登記の法人は一律謝絶すべきだから（誤り）", correct: false },
+                    { text: "② リスク引き上げ後のEDDで、事業実態や売買契約書・インボイスが客観的に確認されたため承認（正しい判断）", correct: true }
+                ],
+                correctChoice: false,
+                explain: "<b>【正解：承認】</b><br>シェアオフィス登記は一見高リスクですが、Step 3でのBO照合クリアおよびEDDによる事業実態の客観的確認ができれば、承認（スムーズ受付）が正解となります。",
+                aftermath: "💡 <b>適切な実務対応:</b> 不要な謝絶を行わず、適切なEDDによって安全に取引を開始できた優良なRBA実践例です。"
+            },
+            {
+                id: 5,
+                title: "Case 5: 法人・口座開設（実質的支配者BOが反社DB HIT）",
+                customerName: "（株）フロント・トレーディング",
+                avatarNormal: "👨💼", avatarAngry: "😶",
+                customerFeature: "【来店客の特徴】代表取締役・小林誠（名義貸し代表の疑い）",
+                speech: "「中古品売買事業の売上金回収用口座を開設したいのですが。」",
+                idCard: {
+                    type: "法人登記簿・身分証", photoAvatar: "👨💼", name: "小林 誠（名義代表）",
+                    birth: "法人設立：6ヶ月前", feature: "【写真特徴】代表者本人一致"
+                },
+                initialRisk: "MEDIUM",
+                idCheck: { status: "OK", details: "代表者身分証照合完了" },
+                cdd: [
+                    { label: "顧客ID", value: "CORP-4011", suspicious: false },
+                    { label: "氏名 / 法人名", value: "株式会社フロント・トレーディング", suspicious: false },
+                    { label: "国籍・地域", value: "日本（法人）", suspicious: false },
+                    { label: "在留資格・期限", value: "―", suspicious: false },
+                    { label: "職業・事業内容", value: "リサイクル業", suspicious: false },
+                    { label: "資金の源泉 (SoW)", value: "事業売上金", suspicious: false },
+                    { label: "申告取引目的", value: "売上金回収", suspicious: false },
+                    { label: "取引予定金額", value: "100,000円", suspicious: false }
+                ],
+                bo: { show: true, name: "龍神 太郎（実質的支配株主）", share: "55%", screeningStatus: "❓ スクリーニング未実行（Step 3で照合）" },
+                screening: { status: "HIT", details: "【個人照合】代表者ヒットなし<br>【BO照合結果】🚨 <b>【反社会的勢力DB HIT】</b> 実質的支配者・龍神 太郎 が暴力団関係者リストに一致しました！" },
+                observation: "代表者自身は模範的に応答するが、株主（BO）の話題になると言葉を濁す。",
+                eddInfo: { requested: "BOが反社DBヒットのため追加EDD不要（即時判定）。", reaction: "―", managerNote: "【上級管理職指示】暴排条項に基づき即時謝絶。" },
+                reasons: [
+                    { text: "① Step 3での照合により実質的支配者（BO）が反社会的勢力データベースに登録されていることが判明したため", correct: true },
+                    { text: "② 代表取締役が未成年だから（誤り）", correct: false }
+                ],
+                correctChoice: true,
+                explain: "<b>【正解：謝絶 / 通報】</b><br>Step 3のスクリーニングを実行したことで、実質的支配者（BO）が反社会的勢力に該当することが判明しました。即時謝絶対象となります。",
+                aftermath: "⚠️ <b>もし見過ごしていたら…:</b> 暴力団のフロント企業のメイン口座として悪用され、当局から厳格な行政処分を受けました。"
+            },
+            {
+                id: 6,
+                title: "Case 6: 個人・住宅ローン申込（低リスク正常取引）",
+                customerName: "高橋 裕子 (35歳)",
+                avatarNormal: "👩🏻", avatarAngry: "❓",
+                customerFeature: "【来店客の特徴】35歳女性・看護師・書類不備なく落ち着いた応対",
+                speech: "「マイホーム購入のための住宅ローン3,800万円の申込みに来ました。」",
+                idCard: {
+                    type: "運転免許証", photoAvatar: "👩🏻", name: "高橋 裕子",
+                    birth: "1991年5月20日生 (35歳)", feature: "【写真特徴】本人一致"
+                },
+                initialRisk: "LOW",
+                idCheck: { status: "OK", details: "運転免許証照合完了（本人一致）" },
+                cdd: [
+                    { label: "顧客ID", value: "IND-3088", suspicious: false },
+                    { label: "氏名 / 法人名", value: "高橋 裕子", suspicious: false },
+                    { label: "国籍・地域", value: "日本", suspicious: false },
+                    { label: "在留資格・期限", value: "―", suspicious: false },
+                    { label: "職業・事業内容", value: "総合病院 看護師（勤続8年）", suspicious: false },
+                    { label: "資金の源泉 (SoW)", value: "給与所得・自己資金", suspicious: false },
+                    { label: "申告取引目的", value: "マイホーム購入", suspicious: false },
+                    { label: "取引予定金額", value: "38,000,000円", suspicious: false }
+                ],
+                bo: { show: false },
+                screening: { status: "CLEAR", details: "【個人DB照合】ヒットなし（0件）" },
+                observation: "源泉徴収票・勤続証明書・物件売買契約書を不備なく提出。質疑応答も明瞭。",
+                eddInfo: {
+                    requested: "（⚠️注意：この取引は低リスクです）", reaction: "不要な追加調査を求められた顧客から不満が噴出。",
+                    managerNote: "【上級管理職注意】低リスク取引への過剰なリスク引き上げやEDDは顧客体験の悪化を招くため、円滑に承認してください。"
+                },
+                reasons: [
+                    { text: "① 属性・目的が明確な低リスク取引であり、過剰なリスク引き上げやEDDを行わず承認するのが適切なため", correct: true },
+                    { text: "② 看護師は高リスク職種だから謝絶すべき（誤り）", correct: false }
+                ],
+                correctChoice: false,
+                explain: "<b>【正解：承認】</b><br>属性・目的・資金の整合性が明確な低リスク取引です。不要なリスク引き上げや追加調査を行わず迅速に承認することが適切です。",
+                aftermath: "💡 <b>適切な実務対応:</b> 不要な確認を省略（SDD）し、円滑な顧客対応を実現できた例です。"
+            }
+        ];
+
+        let currentCaseIdx = 0;
+        let score = 0;
+        let life = 3;
+        let timerInterval = null;
+        let timeLeft = 90;
+        let skillScores = { kyc: 0, cdd: 0, edd: 0, risk: 0 };
+
+        function initSimulator() {
+            const container = document.getElementById('case-container');
+            container.innerHTML = '';
+
+            caseData.forEach((item, index) => {
+                const panel = document.createElement('div');
+                panel.className = `case-panel ${index === 0 ? 'active' : ''}`;
+                panel.id = `case-panel-${index}`;
+
+                let boHtml = '';
+                if (item.bo.show) {
+                    boHtml = `
+                    <div style="background:#EEF2FF; border:1px solid #C7D2FE; padding:8px; border-radius:6px; margin-top:8px; font-size:0.82rem;">
+                        <b>🏢 実質的支配者（BO）情報:</b> ${item.bo.name} (保有率: ${item.bo.share})
+                        <br><span id="bo-status-${index}" style="color:var(--color-text-sub); font-weight:700;">照合状況: ${item.bo.screeningStatus}</span>
+                    </div>`;
+                }
+
+                // CDD項目の生成（不審フラグのインタラクティブ判定付き）
+                let cddGridHtml = item.cdd.map((field, fIdx) => `
+                    <div class="data-item" onclick="checkCDDItem(this, ${field.suspicious}, '${field.note || ''}')">
+                        <span class="data-item__label">${field.label}</span>
+                        <span class="data-item__value">${field.value}</span>
+                    </div>
+                `).join('');
+
+                panel.innerHTML = `
+                    <!-- 🏛️ 対面カウンターエリア -->
+                    <div class="counter-stage">
+                        <div class="customer-portrait-card">
+                            <div class="portrait-avatar-box" id="avatar-display-${index}">${item.avatarNormal}</div>
+                            <div style="font-weight:800; font-size:0.85rem; color:var(--color-navy);">${item.customerName}</div>
+                            <span class="portrait-feature-tag">${item.customerFeature}</span>
+                        </div>
+                        <div class="speech-bubble">
+                            💬 <b>窓口での申出会話:</b><br>${item.speech}
+                        </div>
+                        <div class="id-card-graphic">
+                            <div class="id-card-header">
+                                <span>🪪 ${item.idCard.type}</span>
+                                <span>OFFICIAL</span>
+                            </div>
+                            <div class="id-card-body">
+                                <div class="id-card-photo">${item.idCard.photoAvatar}</div>
+                                <div class="id-card-info">
+                                    <b>${item.idCard.name}</b><br>
+                                    <span style="color:var(--color-text-sub);">${item.idCard.birth}</span><br>
+                                    <span style="color:#2563EB; font-weight:700;">${item.idCard.feature}</span>
+                                </div>
+                            </div>
+                            <div class="id-hologram">偽造防止ホログラム</div>
+                        </div>
+                    </div>
+
+                    <!-- 🖥️ 窓口行員端末画面 -->
+                    <div class="terminal-card">
+                        <div class="terminal-header">
+                            <span>🖥️ 銀行員用 AML審査端末 v5.2</span>
+                            <span style="font-size:0.75rem;">店舗: 〇〇支店 窓口1番</span>
+                        </div>
+
+                        <!-- Step 1: 本人確認 -->
+                        <div class="step-block">
+                            <div class="step-title">
+                                <span>1️⃣ 🪪 本人確認（身分証検分・なりすまし検証）</span>
+                                <button class="btn-inline" id="btn-id-${index}" onclick="execIDCheck(${index})">🪪 IC読取・顔照合を実行</button>
+                            </div>
+                            <div class="result-panel" id="id-res-${index}">
+                                <b>【本人確認・検分結果】</b><br>${item.idCheck.details}
+                            </div>
+                        </div>
+
+                        <!-- Step 2: CDD & リスク評価 -->
+                        <div class="step-block">
+                            <div class="step-title">
+                                <span>2️⃣ 👤 顧客基本情報・取引目的（CDD）& リスク動的評価</span>
+                                <div>
+                                    システム初期格付: <span class="badge ${getRiskBadgeClass(item.initialRisk)}" id="risk-badge-${index}">${item.initialRisk}</span>
+                                    <button class="btn-inline btn-inline--upgrade" onclick="upgradeRisk(${index})">🚨 リスク格付をHIGHへ手動変更</button>
+                                </div>
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--color-sky); margin-bottom:6px; font-weight:700;">💡 不審と思われる属性項目をタップしてチェックできます：</div>
+                            <div class="cdd-grid">${cddGridHtml}</div>
+                            ${boHtml}
+                        </div>
+
+                        <!-- Step 3: スクリーニング & EDD -->
+                        <div class="step-block">
+                            <div class="step-title">
+                                <span>3️⃣ 🔍 犯罪者・反社リスト照合（スクリーニング）& 🔎 EDD詳細調査</span>
+                                <div>
+                                    <button class="btn-inline" id="btn-scr-${index}" onclick="execScr(${index})">🔍 リスト照合（個人/BO）</button>
+                                    <button class="btn-inline btn-inline--edd" id="btn-edd-${index}" onclick="execEDD(${index})">🔎 徹底ヒアリング（EDD）</button>
+                                </div>
+                            </div>
+                            <div class="result-panel" id="scr-res-${index}"><b>【リストスクリーニング照合結果】</b><br>${item.screening.details}</div>
+                            <div class="result-panel" id="edd-res-${index}">
+                                <b>【EDD実施結果】</b><br>
+                                ・<b>要求手続:</b> ${item.eddInfo.requested}<br>
+                                ・<b>顧客反応:</b> <span style="color:var(--color-red); font-weight:700;">${item.eddInfo.reaction}</span><br>
+                                ・<b>上級管理職指示:</b> ${item.eddInfo.managerNote}
+                            </div>
+                        </div>
+
+                        <div class="observation-note" style="background:#FEF3C7; border-left:4px solid var(--color-orange); padding:8px 12px; font-size:0.82rem; border-radius:4px;">
+                            📌 <b>窓口観察メモ:</b> ${item.observation}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(panel);
+            });
+
+            updateHeader();
+            startTimer();
+        }
+
+        // 不審項目のタップ判定ロジック
+        function checkCDDItem(el, isSuspicious, note) {
+            if (isSuspicious) {
+                if (!el.classList.contains('flagged-success')) {
+                    el.classList.add('flagged-success');
+                    alert(`⭕️ 正解！不審な点を検出しました：\n${note}`);
+                    skillScores.cdd += 10;
+                }
+            } else {
+                el.classList.add('flagged-fail');
+                alert("❌ この項目は一般的な記載内容であり、特に不審点はありません。");
+                setTimeout(() => el.classList.remove('flagged-fail'), 1200);
+            }
+        }
+
+        function getRiskBadgeClass(risk) { return risk === 'HIGH' ? 'badge--high' : (risk === 'MEDIUM' ? 'badge--medium' : 'badge--low'); }
+
+        function execIDCheck(idx) {
+            document.getElementById(`id-res-${idx}`).classList.add('active');
+            const btn = document.getElementById(`btn-id-${idx}`);
+            btn.innerText = "✓ 本人確認完了"; btn.disabled = true;
+            skillScores.kyc += 20;
+        }
+
+        function upgradeRisk(idx) {
+            const badge = document.getElementById(`risk-badge-${idx}`);
+            badge.className = "badge badge--high";
+            badge.innerText = "HIGH (手動変更)";
+            alert("🚨 窓口担当者の判断により、顧客リスク評価を【HIGH】へ手動引き上げました。これによりEDD（詳細調査）の実行が可能になります。");
+            skillScores.risk += 15;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 90;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert("⏱️ 制限時間切れです！窓口の応対時間を考慮し、迅速に判断してください。");
+                    handleJudge(true, false);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            document.getElementById('timer-text').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function execScr(idx) {
+            document.getElementById(`scr-res-${idx}`).classList.add('active');
+            const btn = document.getElementById(`btn-scr-${idx}`);
+            btn.innerText = "✓ リスト照合完了"; btn.disabled = true;
+
+            const boStatusEl = document.getElementById(`bo-status-${idx}`);
+            if (boStatusEl) {
+                const currentCase = caseData[idx];
+                if (currentCase.id === 5) {
+                    boStatusEl.innerHTML = `照合状況: <span style="color:var(--color-red); font-weight:800;">🚨 【反社会的勢力DB HIT】 暴力団関係者リスト一致！</span>`;
+                } else {
+                    boStatusEl.innerHTML = `照合状況: <span style="color:var(--color-green); font-weight:800;">クリア（反社・PEPヒットなし）</span>`;
+                }
+            }
+
+            skillScores.kyc += 10;
+        }
+
+        function execEDD(idx) {
+            document.getElementById(`edd-res-${idx}`).classList.add('active');
+            const btn = document.getElementById(`btn-edd-${idx}`);
+            btn.innerText = "✓ EDD調査完了"; btn.disabled = true;
+
+            const currentCase = caseData[idx];
+            document.getElementById(`avatar-display-${idx}`).innerText = currentCase.avatarAngry;
+
+            if (!currentCase.isHighRisk) {
+                alert("⚠️【過剰調査注意】この取引は低リスクな正常取引です。不要なリスク引き上げやEDD（追加調査）を行うと顧客体験悪化・クレームを招きます。");
+                skillScores.edd -= 10;
+            } else {
+                skillScores.edd += 20;
+            }
+        }
+
+        function openReasonModal() {
+            const currentCase = caseData[currentCaseIdx];
+            const container = document.getElementById('reason-buttons-container');
+            container.innerHTML = '';
+
+            currentCase.reasons.forEach(reason => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-reason';
+                btn.innerText = reason.text;
+                btn.onclick = () => {
+                    document.getElementById('modal-reason').classList.remove('active');
+                    handleJudge(true, reason.correct);
+                };
+                container.appendChild(btn);
+            });
+
+            document.getElementById('modal-reason').classList.add('active');
+        }
+
+        function handleJudge(userChoice, isReasonCorrect = true) {
+            clearInterval(timerInterval);
+            const currentCase = caseData[currentCaseIdx];
+            let isCorrect = (userChoice === currentCase.correctChoice);
+
+            if (userChoice === true && !isReasonCorrect) isCorrect = false;
+
+            if (isCorrect) {
+                score++; skillScores.cdd += 15; skillScores.risk += 20;
+            } else {
+                life--;
+            }
+
+            updateHeader();
+
+            const modalTitle = document.getElementById('modal-explain-title');
+            const modalBody = document.getElementById('modal-explain-body');
+            const modalAftermath = document.getElementById('modal-explain-aftermath');
+
+            if (isCorrect) {
+                modalTitle.innerText = "⭕️ 正解！"; modalTitle.className = "modal__header modal__header--correct";
+            } else {
+                modalTitle.innerText = "❌ 不正解..."; modalTitle.className = "modal__header modal__header--wrong";
+            }
+
+            modalBody.innerHTML = currentCase.explain;
+            modalAftermath.innerHTML = currentCase.aftermath;
+            document.getElementById('modal-explain').classList.add('active');
+        }
+
+        function handleModalNext() {
+            document.getElementById('modal-explain').classList.remove('active');
+
+            if (life <= 0 || currentCaseIdx >= caseData.length - 1) {
+                showFinalResult();
+            } else {
+                document.getElementById(`case-panel-${currentCaseIdx}`).classList.remove('active');
+                currentCaseIdx++;
+                document.getElementById(`case-panel-${currentCaseIdx}`).classList.add('active');
+                updateHeader();
+                startTimer();
+            }
+        }
+
+        function updateHeader() {
+            document.getElementById('progress-text').innerText = `${currentCaseIdx + 1}/${caseData.length}`;
+            document.getElementById('score-text').innerText = score;
+            document.getElementById('life-text').innerText = "❤️".repeat(Math.max(0, life)) + "🖤".repeat(Math.max(0, 3 - life));
+        }
+
+        function showFinalResult() {
+            clearInterval(timerInterval);
+            const modalFinal = document.getElementById('modal-final');
+            const title = document.getElementById('modal-final-title');
+            const body = document.getElementById('modal-final-body');
+
+            const isPassed = (score >= 4 && life > 0);
+
+            const kycPct = Math.min(100, Math.max(20, skillScores.kyc));
+            const cddPct = Math.min(100, Math.max(20, Math.round((score / caseData.length) * 100)));
+            const eddPct = Math.min(100, Math.max(10, skillScores.edd + 40));
+            const riskPct = Math.min(100, Math.max(20, skillScores.risk + 30));
+
+            if (isPassed) {
+                title.innerText = "🎉 最終合格！窓口AMLプロフェッショナル認定";
+                title.style.color = "var(--color-green)";
+            } else {
+                title.innerText = "💀 不合格... 再トレーニングが必要です";
+                title.style.color = "var(--color-red)";
+            }
+
+            body.innerHTML = `
+                <b>【窓口審査成績サマリー】</b> 正答数: <b>${score} / ${caseData.length}</b>（残ライフ: ${life}）<br><br>
+                <b>📊 窓口審査スキル評価メーター:</b>
+                <div style="margin-top:10px;">
+                    <div class="skill-meter">
+                        <div class="skill-label"><span>🪪 本人確認・真贋照合精度</span><span>${kycPct}%</span></div>
+                        <div class="bar-bg"><div class="bar-fill" style="width:${kycPct}%;"></div></div>
+                    </div>
+                    <div class="skill-meter">
+                        <div class="skill-label"><span>👤 CDD洞察力（属性不整合の察知）</span><span>${cddPct}%</span></div>
+                        <div class="bar-bg"><div class="bar-fill" style="width:${cddPct}%;"></div></div>
+                    </div>
+                    <div class="skill-meter">
+                        <div class="skill-label"><span>⚖️ EDD・RBA判断力（手動格付と過剰調査回避）</span><span>${eddPct}%</span></div>
+                        <div class="bar-bg"><div class="bar-fill" style="width:${eddPct}%;"></div></div>
+                    </div>
+                    <div class="skill-meter">
+                        <div class="skill-label"><span>🚨 リスク感度（根拠特定力）</span><span>${riskPct}%</span></div>
+                        <div class="bar-bg"><div class="bar-fill" style="width:${riskPct}%;"></div></div>
+                    </div>
+                </div>
+            `;
+
+            modalFinal.classList.add('active');
+        }
+
+        function openManualModal() { document.getElementById('modal-manual').classList.add('active'); }
+        function closeManualModal() { document.getElementById('modal-manual').classList.remove('active'); }
+        function closeStartModal() { document.getElementById('modal-start').classList.remove('active'); }
+        function resetSimulator() {
+            currentCaseIdx = 0; score = 0; life = 3;
+            skillScores = { kyc: 0, cdd: 0, edd: 0, risk: 0 };
+            document.getElementById('modal-final').classList.remove('active');
+            initSimulator();
+        }
+
+        window.onload = initSimulator;
+    </script>
+</body>
+</html>
